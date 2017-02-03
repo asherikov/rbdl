@@ -170,27 +170,58 @@ bool construct_model (Model* rbdl_model, ModelPtr urdf_model, bool floating_base
 
 		// create the joint
 		Joint rbdl_joint;
-		if (urdf_joint->type == urdf::Joint::REVOLUTE || urdf_joint->type == urdf::Joint::CONTINUOUS) {
-			rbdl_joint = Joint (SpatialVector (urdf_joint->axis.x, urdf_joint->axis.y, urdf_joint->axis.z, 0., 0., 0.));
-		} else if (urdf_joint->type == urdf::Joint::PRISMATIC) {
-			rbdl_joint = Joint (SpatialVector (0., 0., 0., urdf_joint->axis.x, urdf_joint->axis.y, urdf_joint->axis.z));
-		} else if (urdf_joint->type == urdf::Joint::FIXED) {
-			rbdl_joint = Joint (JointTypeFixed);
-		} else if (urdf_joint->type == urdf::Joint::FLOATING) {
-			// todo: what order of DoF should be used?
-			rbdl_joint = Joint (
-					SpatialVector (0., 0., 0., 1., 0., 0.),
-					SpatialVector (0., 0., 0., 0., 1., 0.),
-					SpatialVector (0., 0., 0., 0., 0., 1.),
-					SpatialVector (1., 0., 0., 0., 0., 0.),
-					SpatialVector (0., 1., 0., 0., 0., 0.),
-					SpatialVector (0., 0., 1., 0., 0., 0.));
-		} else if (urdf_joint->type == urdf::Joint::PLANAR) {
-			// todo: which two directions should be used that are perpendicular
-			// to the specified axis?
-			cerr << "Error while processing joint '" << urdf_joint->name << "': planar joints not yet supported!" << endl;
-			return false;
+        switch(urdf_joint->type)
+        {
+		    case urdf::Joint::REVOLUTE:
+            case urdf::Joint::CONTINUOUS:
+			    rbdl_joint = Joint (SpatialVector (urdf_joint->axis.x, urdf_joint->axis.y, urdf_joint->axis.z, 0., 0., 0.));
+                break;
+
+            case urdf::Joint::PRISMATIC:
+    			rbdl_joint = Joint (SpatialVector (0., 0., 0., urdf_joint->axis.x, urdf_joint->axis.y, urdf_joint->axis.z));
+                break;
+
+            case urdf::Joint::FIXED:
+                rbdl_joint = Joint (JointTypeFixed);
+                break;
+
+            case urdf::Joint::FLOATING:
+                // todo: what order of DoF should be used?
+                rbdl_joint = Joint (
+                        SpatialVector (0., 0., 0., 1., 0., 0.),
+                        SpatialVector (0., 0., 0., 0., 1., 0.),
+                        SpatialVector (0., 0., 0., 0., 0., 1.),
+                        SpatialVector (1., 0., 0., 0., 0., 0.),
+                        SpatialVector (0., 1., 0., 0., 0., 0.),
+                        SpatialVector (0., 0., 1., 0., 0., 0.));
+                break;
+
+            case urdf::Joint::PLANAR:
+                {
+                    // todo: which two directions should be used that are perpendicular
+                    // to the specified axis?
+                    Vector3d new_axis_z(urdf_joint->axis.x, urdf_joint->axis.y, urdf_joint->axis.z);
+                    Vector3d old_axis_z(0., 0., 1.);
+
+                    Matrix3d R;
+                    R = Eigen::AngleAxisd(acos(new_axis_z.dot(old_axis_z)), old_axis_z.cross(new_axis_z)).matrix();
+
+                    Vector3d new_axis_x = R.block(0,0,3,1);
+                    Vector3d new_axis_y = R.block(0,1,3,1);
+
+                    rbdl_joint = Joint (
+                            SpatialVector (0., 0., 0., new_axis_x(0), new_axis_x(1), new_axis_x(2)),
+                            SpatialVector (0., 0., 0., new_axis_y(0), new_axis_y(1), new_axis_y(2)),
+                            SpatialVector (new_axis_z(0), new_axis_z(1), new_axis_z(2), 0., 0., 0.));
+                }
+                break;
+
+            default:
+                cerr << "Unsupported joint type (joint '" << urdf_joint->name << "')" << endl;
+                return false;
+                break;
 		}
+
 
 		// compute the joint transformation
 		Vector3d joint_rpy;
@@ -282,7 +313,7 @@ RBDL_DLLAPI bool URDFReadFromFile (const char* filename, Model* model, bool floa
 		cerr << "Error opening file '" << filename << "'." << endl;
 		abort();
 	}
-	
+
 	// reserve memory for the contents of the file
 	string model_xml_string;
 	model_file.seekg(0, std::ios::end);
@@ -299,7 +330,7 @@ RBDL_DLLAPI bool URDFReadFromString (const char* model_xml_string, Model* model,
 	assert (model);
 
 	ModelPtr urdf_model = urdf::parseURDF (model_xml_string);
- 
+
 	if (!construct_model (model, urdf_model, floating_base, verbose)) {
 		cerr << "Error constructing model from urdf file." << endl;
 		return false;
