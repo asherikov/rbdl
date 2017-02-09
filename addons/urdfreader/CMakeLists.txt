@@ -15,13 +15,16 @@ SET ( URDFREADER_SOURCES
 	urdfreader.cc
 	)
 
-IF (DEFINED ENV{ROS_ROOT})
-	MESSAGE (STATUS "ROS found: $ENV{ROS_ROOT}")
-	find_package(catkin REQUIRED COMPONENTS urdf)
-	OPTION (RBDL_USE_ROS_URDF_LIBRARY "Use the URDF library provided by ROS" ON)
-ELSE ()
-	SET (RBDL_USE_ROS_URDF_LIBRARY FALSE)
-ENDIF ()
+OPTION (RBDL_USE_ROS_URDF_LIBRARY "Use the URDF library provided by ROS" ON)
+
+IF(RBDL_USE_ROS_URDF_LIBRARY)
+    IF (DEFINED ENV{ROS_ROOT})
+        MESSAGE (STATUS "ROS found: $ENV{ROS_ROOT}")
+        find_package(catkin REQUIRED COMPONENTS urdf)
+    ELSE ()
+        SET (RBDL_USE_ROS_URDF_LIBRARY OFF)
+    ENDIF ()
+ENDIF(RBDL_USE_ROS_URDF_LIBRARY)
 
 IF (RBDL_USE_ROS_URDF_LIBRARY)
 	#	find_package(Boost REQUIRED COMPONENTS system)
@@ -33,13 +36,13 @@ IF (RBDL_USE_ROS_URDF_LIBRARY)
 ELSE()
 	SET (URDFREADER_SOURCES
 		${URDFREADER_SOURCES}
-		thirdparty/urdf/urdfdom/urdf_parser/src/check_urdf.cpp	
+		thirdparty/urdf/urdfdom/urdf_parser/src/check_urdf.cpp
 		thirdparty/urdf/urdfdom/urdf_parser/src/pose.cpp
 		thirdparty/urdf/urdfdom/urdf_parser/src/model.cpp
 		thirdparty/urdf/urdfdom/urdf_parser/src/link.cpp
 		thirdparty/urdf/urdfdom/urdf_parser/src/joint.cpp
 		thirdparty/urdf/urdfdom/urdf_parser/include/urdf_parser/urdf_parser.h
-		thirdparty/urdf/urdfdom_headers/urdf_exception/include/urdf_exception/exception.h	
+		thirdparty/urdf/urdfdom_headers/urdf_exception/include/urdf_exception/exception.h
 		thirdparty/urdf/urdfdom_headers/urdf_model/include/urdf_model/pose.h
 		thirdparty/urdf/urdfdom_headers/urdf_model/include/urdf_model/model.h
 		thirdparty/urdf/urdfdom_headers/urdf_model/include/urdf_model/link.h
@@ -108,7 +111,7 @@ FILE ( GLOB headers
 	"${CMAKE_CURRENT_SOURCE_DIR}/*.h"
 	)
 
-INSTALL ( FILES ${headers} 
+INSTALL ( FILES ${headers}
 	DESTINATION
-	${CMAKE_INSTALL_INCLUDEDIR}/rbdl/addons/urdfreader 
+	${CMAKE_INSTALL_INCLUDEDIR}/rbdl/addons/urdfreader
 	)
